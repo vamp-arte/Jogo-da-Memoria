@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Memória - Animais Brasileiros</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gradient-to-br from-emerald-400 to-teal-600 min-h-screen p-4">
+    <div class="container mx-auto max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-8 pt-4">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">Jogo da Memória</h1>
+            <p class="text-white text-lg">Animais Brasileiros</p>
+            <div class="flex justify-center gap-4 mt-4">
+                <button id="btnJogo" class="px-6 py-2 bg-white text-teal-700 rounded-full font-semibold shadow-lg hover:bg-teal-50 transition">Jogo</button>
+                <button id="btnAlbum" class="px-6 py-2 bg-teal-700 text-white rounded-full font-semibold shadow-lg hover:bg-teal-800 transition">Álbum</button>
+            </div>
+        </header>
+
+        <!-- Página do Jogo -->
+        <div id="paginaJogo" class="page">
+            <div class="text-center mb-4">
+                <p class="text-white text-xl font-semibold">Pares encontrados: <span id="score">0</span>/<span id="totalPares">0</span></p>
+                <button id="btnReiniciar" class="mt-2 px-4 py-2 bg-yellow-400 text-gray-800 rounded-lg font-semibold shadow hover:bg-yellow-300 transition">Reiniciar Jogo</button>
+            </div>
+            <div id="gameBoard" class="grid grid-cols-4 gap-4 max-w-4xl mx-auto"></div>
+        </div>
+
+        <!-- Página do Álbum -->
+        <div id="paginaAlbum" class="page hidden">
+            <h2 class="text-3xl font-bold text-white text-center mb-6">Álbum de Descobertas</h2>
+            <div id="albumGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-4xl mx-auto"></div>
+            <div id="mensagemAlbumVazio" class="text-center text-white text-xl mt-8 hidden">
+                <p>Você ainda não encontrou nenhum par!</p>
+                <p class="text-sm mt-2">Jogue para descobrir os animais.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 relative shadow-2xl">
+            <button id="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+            <img id="modalImg" src="" alt="" class="w-full h-64 object-cover rounded-lg mb-4">
+            <h3 id="modalTitle" class="text-2xl font-bold text-teal-700 mb-2"></h3>
+            <p id="modalDesc" class="text-gray-700"></p>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURAÇÃO - EDITE APENAS ESTE ARRAY
+        // ============================================
+        const CARTAS = [
+            {
+                imagem: "carta1.png",
+                nome: "Arara-azul-de-lear",
+                desc: "Ave endêmica da Bahia, conhecida por sua plumagem azul vibrante e bico forte."
+            },
+            {
+                imagem: "carta2.png",
+                nome: "Peixe-boi-da-amazônia",
+                desc: "Mamífero aquático herbívoro que habita rios e lagos da Amazônia."
+            },
+            {
+                imagem: "carta3.png",
+                nome: "Tartaruga-verde",
+                desc: "Réptil marinho que pode ser encontrado no litoral brasileiro, se alimenta principalmente de algas."
+            },
+            {
+                imagem: "carta4.png",
+                nome: "Sagui-de-duas-cores",
+                desc: "Pequeno primata encontrado na Mata Atlântica, conhecido por sua agilidade."
+            },
+            {
+                imagem: "carta5.png",
+                nome: "Onça-pintada",
+                desc: "O maior felino das Américas, símbolo da fauna brasileira e excelente nadador."
+            },
+            {
+                imagem: "carta6.png",
+                nome: "Tamanduá-bandeira",
+                desc: "Mamífero com língua longa e pegajosa, se alimenta principalmente de formigas e cupins."
+            }
+        ];
+        // ============================================
+
+        // Estado do jogo
+        let cartasViradas = [];
+        let paresEncontrados = new Set();
+        let bloqueado = false;
+
+        // Elementos DOM
+        const gameBoard = document.getElementById('gameBoard');
+        const albumGrid = document.getElementById('albumGrid');
+        const modal = document.getElementById('modal');
+        const paginaJogo = document.getElementById('paginaJogo');
+        const paginaAlbum = document.getElementById('paginaAlbum');
+        const score = document.getElementById('score');
+        const totalPares = document.getElementById('totalPares');
+        const mensagemAlbumVazio = document.getElementById('mensagemAlbumVazio');
+
+        // Inicializar jogo
+        function iniciarJogo() {
+            gameBoard.innerHTML = '';
+            cartasViradas = [];
+            bloqueado = false;
+            
+            // Criar array de cartas (cada carta aparece 2 vezes)
+            const cartas = [];
+            for (let i = 0; i < CARTAS.length; i++) {
+                cartas.push(i, i);
+            }
+            
+            // Embaralhar
+            cartas.sort(() => Math.random() - 0.5);
+            
+            // Criar elementos das cartas
+            cartas.forEach((indice, idx) => {
+                const cartaInfo = CARTAS[indice];
+                const carta = document.createElement('div');
+                carta.className = 'card relative aspect-[2/3] cursor-pointer transition-all duration-500 transform';
+                carta.dataset.indice = indice;
+                carta.dataset.idx = idx;
+                
+                // Verificar se este par já foi encontrado
+                if (paresEncontrados.has(indice)) {
+                    carta.innerHTML = `
+                        <div class="card-front absolute inset-0 bg-gradient-to-br from-cyan-300 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <img src="img/${cartaInfo.imagem}" alt="${cartaInfo.nome}" class="w-full h-full object-cover rounded-2xl">
+                        </div>
+                    `;
+                    carta.classList.add('matched');
+                } else {
+                    carta.innerHTML = `
+                        <div class="card-back absolute inset-0 bg-gradient-to-br from-cyan-300 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <div class="text-6xl">🐾</div>
+                        </div>
+                        <div class="card-front absolute inset-0 bg-gradient-to-br from-cyan-300 to-cyan-500 rounded-2xl opacity-0 rotate-y-180">
+                            <img src="img/${cartaInfo.imagem}" alt="${cartaInfo.nome}" class="w-full h-full object-cover rounded-2xl">
+                        </div>
+                    `;
+                    carta.addEventListener('click', virarCarta);
+                }
+                
+                gameBoard.appendChild(carta);
+            });
+            
+            totalPares.textContent = CARTAS.length;
+            atualizarScore();
+        }
+
+        function virarCarta(e) {
+            if (bloqueado) return;
+            
+            const carta = e.currentTarget;
+            if (carta.classList.contains('flipped') || carta.classList.contains('matched')) return;
+            
+            carta.classList.add('flipped');
+            const front = carta.querySelector('.card-front');
+            const back = carta.querySelector('.card-back');
+            
+            front.style.opacity = '1';
+            front.style.transform = 'rotateY(0deg)';
+            back.style.opacity = '0';
+            back.style.transform = 'rotateY(180deg)';
+            
+            cartasViradas.push(carta);
+            
+            if (cartasViradas.length === 2) {
+                verificarPar();
+            }
+        }
+
+        function verificarPar() {
+            bloqueado = true;
+            const [carta1, carta2] = cartasViradas;
+            const indice1 = carta1.dataset.indice;
+            const indice2 = carta2.dataset.indice;
+            
+            if (indice1 === indice2) {
+                // Acertou!
+                setTimeout(() => {
+                    carta1.classList.add('matched');
+                    carta2.classList.add('matched');
+                    paresEncontrados.add(parseInt(indice1));
+                    atualizarScore();
+                    cartasViradas = [];
+                    bloqueado = false;
+                    
+                    // Verificar vitória
+                    if (paresEncontrados.size === CARTAS.length) {
+                        setTimeout(() => {
+                            alert('Parabéns! Você encontrou todos os pares! 🎉');
+                        }, 500);
+                    }
+                }, 500);
+            } else {
+                // Errou
+                setTimeout(() => {
+                    carta1.classList.remove('flipped');
+                    carta2.classList.remove('flipped');
+                    
+                    const front1 = carta1.querySelector('.card-front');
+                    const back1 = carta1.querySelector('.card-back');
+                    const front2 = carta2.querySelector('.card-front');
+                    const back2 = carta2.querySelector('.card-back');
+                    
+                    front1.style.opacity = '0';
+                    front1.style.transform = 'rotateY(180deg)';
+                    back1.style.opacity = '1';
+                    back1.style.transform = 'rotateY(0deg)';
+                    
+                    front2.style.opacity = '0';
+                    front2.style.transform = 'rotateY(180deg)';
+                    back2.style.opacity = '1';
+                    back2.style.transform = 'rotateY(0deg)';
+                    
+                    cartasViradas = [];
+                    bloqueado = false;
+                }, 1000);
+            }
+        }
+
+        function atualizarScore() {
+            score.textContent = paresEncontrados.size;
+            atualizarAlbum();
+        }
+
+        function atualizarAlbum() {
+            albumGrid.innerHTML = '';
+            
+            if (paresEncontrados.size === 0) {
+                mensagemAlbumVazio.classList.remove('hidden');
+                return;
+            }
+            
+            mensagemAlbumVazio.classList.add('hidden');
+            
+            paresEncontrados.forEach(indice => {
+                const cartaInfo = CARTAS[indice];
+                const cartaAlbum = document.createElement('div');
+                cartaAlbum.className = 'bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer transform hover:scale-105 transition';
+                cartaAlbum.innerHTML = `
+                    <img src="img/${cartaInfo.imagem}" alt="${cartaInfo.nome}" class="w-full h-48 object-cover">
+                    <div class="p-3">
+                        <h4 class="font-bold text-teal-700 text-sm">${cartaInfo.nome}</h4>
+                    </div>
+                `;
+                cartaAlbum.addEventListener('click', () => abrirModal(indice));
+                albumGrid.appendChild(cartaAlbum);
+            });
+        }
+
+        function abrirModal(indice) {
+            const cartaInfo = CARTAS[indice];
+            document.getElementById('modalImg').src = `img/${cartaInfo.imagem}`;
+            document.getElementById('modalTitle').textContent = cartaInfo.nome;
+            document.getElementById('modalDesc').textContent = cartaInfo.desc;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function fecharModal() {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Event Listeners
+        document.getElementById('btnJogo').addEventListener('click', () => {
+            paginaJogo.classList.remove('hidden');
+            paginaAlbum.classList.add('hidden');
+        });
+
+        document.getElementById('btnAlbum').addEventListener('click', () => {
+            paginaJogo.classList.add('hidden');
+            paginaAlbum.classList.remove('hidden');
+            atualizarAlbum();
+        });
+
+        document.getElementById('btnReiniciar').addEventListener('click', () => {
+            if (confirm('Deseja reiniciar o jogo? Seu progresso atual será mantido no álbum.')) {
+                iniciarJogo();
+            }
+        });
+
+        document.getElementById('closeModal').addEventListener('click', fecharModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) fecharModal();
+        });
+
+        // Iniciar o jogo
+        iniciarJogo();
+        atualizarAlbum();
+    </script>
+</body>
+</html>
