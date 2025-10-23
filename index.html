@@ -6,7 +6,7 @@
     <title>O Mergulho - Mergulhe na diversidade marítima e resgate animais</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body class="bg-gradient-to-br from-emerald-400 to-teal-600 min-h-screen p-4">
+<body class="bg-gradient-to-br from-[#E9BD86] to-teal-600 min-h-screen p-4">
     <div class="container mx-auto max-w-6xl">
         <!-- Header -->
         <header class="text-center mb-8 pt-4">
@@ -286,7 +286,7 @@
 
         document.getElementById('btnReiniciar').addEventListener('click', () => {
             if (confirm('Deseja reiniciar o jogo? Seu progresso atual será mantido no álbum.')) {
-                iniciarJogo();
+                window.location.reload();
             }
         });
 
